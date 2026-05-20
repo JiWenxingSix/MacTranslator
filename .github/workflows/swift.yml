@@ -14,14 +14,49 @@ jobs:
     - name: Set up Xcode
       run: sudo xcode-select -s /Applications/Xcode_15.4.app
       
-    - name: Build App
+    - name: Create App Bundle Structure
       run: |
-        swift build -c release
-        mkdir -p output
-        cp -r .build/release/MacTranslator output/MacTranslator.app
+        mkdir -p output/MacTranslator.app/Contents/MacOS
+        mkdir -p output/MacTranslator.app/Contents/Resources
         
-    - name: Upload Artifact
+    - name: Build and Package App
+      run: |
+        # 1. 编译 release 版本的可执行文件
+        swift build -c release
+        
+        # 2. 把核心程序放进标准目录
+        cp .build/release/MacTranslator output/MacTranslator.app/Contents/MacOS/MacTranslator
+        chmod +x output/MacTranslator.app/Contents/MacOS/MacTranslator
+        
+        # 3. 注入苹果必需的 Info.plist 身份证文件
+        cat << 'EOF' > output/MacTranslator.app/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.EN">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>MacTranslator</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.polyv.MacTranslator</string>
+            <key>CFBundleName</key>
+            <string>MacTranslator</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>LSApplicationCategoryType</key>
+            <string>public.app-category.utilities</string>
+        </dict>
+        </plist>
+        EOF
+        
+        # 4. 在云端服务器上直接对 App 进行本地临时签名（解决 M 系列芯片报错的关键！）
+        codesign --force --deep --sign - output/MacTranslator.app
+
+    - name: Upload Zip Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MacTranslator-App
+        name: MacTranslator-Ready-To-Use
         path: output/MacTranslator.app
