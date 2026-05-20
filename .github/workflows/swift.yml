@@ -1,0 +1,27 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      
+    - name: Build App
+      run: |
+        swift build -c release
+        mkdir -p output
+        cp -r .build/release/MacTranslator output/MacTranslator.app
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MacTranslator-App
+        path: output/MacTranslator.app
